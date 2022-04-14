@@ -1,0 +1,166 @@
+---
+title: "Tutorial Uji Hipotesis menggunakan R"
+author: "Pramudita Satria Palar, Ph.D."
+date: "12/11/2021"
+output:
+  html_notebook: default
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Perkenalan
+Pada tutorial ini, kita akan melakukan uji hipotesis menggunakan R. Ada beberapa metode uji hipotesis yang dapat langsung anda gunakan ketika anda sudah memasang R di komputer anda. Fungsi-fungsi ini dapat anda gunakan untuk berbagai macam aplikasi sesuai dengan apa yang anda butuhkan (misal: uji perbedaan satu sample atau dua sample, ataupun uji normalitas).
+
+Kita kembali ke pertanyaan mendasar terlebih dahulu: Mengapa kita membutuhkan uji hipotesis? Ingat kembali bahwa pada dasarnya sampel yang kita ambil dari populasi jumlahnya adalah terbatas, sehingga membutuhkan kehati-hatian dalam menarik kesimpulan dari data yang kita miliki. Uji hipotesis membantu dalam menjawab pertanyaan tersebut. Perlu dicatat bahwa pertanyaan atau hipotesis yang ingin dijawab harus dapat dijawab dengan metode saintifik, sebagai contoh: "Apakah secara statistik mahasiswa yang mengambil tutorial mata kuliah Kalkulus mendapatkan nilai yang lebih tinggi dari yang tidak mengambil tutorial?". Hasil keluaran dari uji hipotesis adalah perbedaan yang terjadi *signifikan secara statistik atau tidak*. Hasil inilah yang akan membantu kita dalam mengambil keputusan nantinya.
+
+### Mendefinisikan hipotesis
+Dalam melakukan uji hipotesis, kita perlu menentukan terlebih dahulu hipotesis nol (*null hypothesis*) dan hipotesis alternatif (*alternative hypothesis*). Hipotesis nol bisa merupakan sesuatu yang ingin kita tolak atau justru tidak ingin kita tolak, ini akan bergantung dengan konteks permasalahan yang sedang kita hadapi. Jika anda membuat metode manufaktur yang lebih bagus daripada metode lama, maka anda membuat hipotesis nol bahwa metode manufaktur baru dan lama memiliki performa yang sama saja; oleh karena itu, anda ingin menolak hipotesis nol. Di lain pihak, jika anda mengajukan metode baru yang lebih murah dengan klaim bahwa performanya sama saja dengan metode lama, maka anda membuat hipotesis nol bahwa kedua metode memiliki performa yang sama saja; dalam konteks ini, anda justru tidak ingin menolak hipotesis nol.
+
+Hipotesis alternatif adalah hipotesis yang anda terima ketika anda menolak hipotesis nol karena bukti yang ada cukup untuk anda melakukan hal tersebut. Kita akan menggunakan notasi $\mathcal{H}_{0}$ untuk hipotesis nol dan $\mathcal{H}_{1}$ untuk hipotesis alternatif.
+
+Contoh berikut dapat memberikan gambaran mengenai $\mathcal{H}_{0}$ dan $\mathcal{H}_{1}$:
+
+* $\mathcal{H}_{0}$: Tidak ada perbedaan signifikan antara hasil dari metode A dan metode B.
+* $\mathcal{H}_{1}$: Metode A menghasilkan keluaran yang lebih banyak daripada metode B.
+
+Perhatikan kata *lebih banyak*, yang menunjukkan bahwa uji hipotesis di atas adalah uji satu arah. Anda juga dapat mendefinisikan uji hipotesis yang bersifat dua arah, sebagai contoh:
+
+* $\mathcal{H}_{0}$: Gaji rata-rata per bulan anda adalah 1000 $.
+* $\mathcal{H}_{1}$: Gaji rata-rata per bulan anda bukan 1000 $.
+
+Hipotesis alternatif di atas bersifat dua arah karena gaji anda bisa saja lebih kecil atau lebih tinggi dari 1000 $.
+
+Langkah-langkah dari uji hipotesis adalah sebagai berikut:
+
+* Harga $p$ yang kecil mengindikasikan bukti yang kuat untuk menolak $H_{0}$, sehingga anda menolak $H_{0}$.
+* Harga $p$ yang besar mengindikasikan bukti yang lemah untuk menolak $H_{0}$, sehingga anda gagal menolak $H_{0}$.
+
+Batas angka $p$ dimana anda mengambil keputusan antara menolak atau gagal menolak $H_{0}$ akan tergantung dari level signifikansi yang anda inginkan. Umumnya, angka 0.05 adalah angka yang biasa digunakan di berbagai komunitas. Akan tetapi, beberapa komunitas mengambil batas yang lebih rendah lagi agar lebih yakin dengan keputusan yang diambil.
+
+Untuk memberikan illustrasi awal, kita akan coba membandingkan dua set data yang berasal dari $\mathcal{N}(0,1)$ dan $\mathcal{N}(2,1.5)$, dengan masing-masing memiliki 100 observasi dan kita berikan nama $X_{1}$ dan $X_{2}$. 
+```{r fig_boxplot, echo=FALSE, fig.height=4, fig.width=4, fig.align="center", fig.cap="Boxplot dua data yang akan kita bandingkan (lingkaran biru menunjukkan angka mean)"}
+set.seed(5)
+x1 = rnorm(100, mean = 0, sd = 1) # Data pertama
+x2 = rnorm(100, mean = 1.2, sd = 2.5) # Data kedua
+boxplot(x1,x2,ylab="y",names=c("X1", "X2"),xlim=c(0, 3), ylim = c(-8,8)) # Membuat boxplot
+points(c(1,2),c(mean(x1),mean(x2)),col="blue",cex=1.5,pch=19) # Menambahkan mean 
+```
+Boxplot di atas menunjukkan bahwa $X_{2}$ memiliki mean yang lebih tinggi daripada $X_{1}$, sehingga kita bisa saja mengatakan bahwa $X_{2}$ memang secara rata-rata lebih tinggi daripada $X_{1}$. Tetapi apakah perbedaan tersebut hanya kebetulan saja? Atau karena memang ada efek tertentu yang menyebabkan $X_{2}$ lebih tinggi secara rata-rata dari $X_{1}$. Perhatikan juga bahwa beberapa realisasi dari $X_{2}$ memiliki angka yang lebih rendah dibandingkan dengan semua hasil realisasi $X_{1}$. Ini adalah contoh dari uji dua sampel dimana kita ingin membandingkan apakah ada perbedaan signifikan dari dua sampel yang berbeda. Dalam ini, kuantitas yang ingin kita bandingkan adalah mean dari data. Uji hipotesis juga dapat bersifat satu sampel, biasanya ketika kita ingin menguji apakah mean dari suatu sampel konsisten dengan suatu hipotesis kita mengenai mean tersebut. 
+
+### Uji hipotest t-test
+
+Kita akan jawab pertanyaan tersebut dengan *t-test* menggunakan fungsi `t.test()`.
+
+
+## Menggunakan fungsi *t.test*
+
+### *t-test* dengan satu sample
+Eksperimen *t-test* dengan satu sample  menguji satu dari pasangan hipotesis nol dan hipotesis alternatif berikut
+
+1. $\mathcal{H}_{0}: \mu = \mu_{0}$, $\mathcal{H}_{a}: \mu \neq \mu_{0}$
+2. $\mathcal{H}_{0}: \mu \leq \mu_{0}$, $\mathcal{H}_{a}: \mu < \mu_{0}$
+3. $\mathcal{H}_{0}: \mu \leq \mu_{0}$, $\mathcal{H}_{a}: \mu > \mu_{0}$
+dimana $\mu_{0}$ adalah angka yang kita definisikan untuk hipotesis nol. 
+
+Kita mulai dari contoh sederhana dengan membuat data artifisial yang kita bangkitkan dari distribusi normal $\mathcal{N}(7,2)$ dengan 50 observasi. Dalam konteks dunia nyata, tentunya yang anda miliki hanyalah hasil observasi anda. Hal yang ingin anda jawab disini adalah, misal, apakah benar bahwa angka mean sebenarnya dari data ini adalah 7? Atau bisa juga kita definisikan hipotesis nol kita, misal, apakah benar bahwa angka mean sebenarnya lebih kecil daripada 7.2? Atau benarkan bahwa angka mean sebenarnya lebih besar dari 7.2? Ketiga hipotesis nol ini beserta dengan pasangan hipotesis alternatifnya dapat kita tuliskan secara format sebagai berikut
+
+1. $\mathcal{H}_{0}: \mu = 7$, $\mathcal{H}_{a}: \mu \neq 7$
+2. $\mathcal{H}_{0}: \mu \leq 6.8$, $\mathcal{H}_{a}: \mu > 6.8$
+3. $\mathcal{H}_{0}: \mu \geq 7.2$, $\mathcal{H}_{a}: \mu < 7.2$
+
+Gambar di bawah menunjukkan visualisasi dari data yang ingin kita analisis lebih lanjut dalam bentuk histogram. Sekilas pandang, memang terlihat bahwa sepertinya data tersebut memiliki angka mean sebesar $\mu=7$. Uji hipotesis akan memberikan jawaban dari pertanyaan ini secara formal.
+```{r fig_boxplot_ttest1, echo=FALSE, fig.height=4, fig.width=4, fig.align="center", fig.cap="Boxplot untuk t-test dengan satu sample"}
+set.seed(5)
+xs1 <- rnorm(50, mean=7,sd = 0.2)
+hist(xs1)
+```
+Pertama-tama kita akan mencoba dengan menggunakan hipotesis nol sebagai berikut
+ $\mathcal{H}_{a}: \mu = 7$, dan kemudian menggunakan fungsi ```t.test()```. Untuk melakukan t-test dengan ```t.test()```, anda direkomendasikan untuk mengetikkan minimal argument ```mu``` (angka hipotesis nol) dan juga ```alternative``` (dapat anda isi dengan ```two.sided```,```less```, atau ```greater```). Karena hipotesis nol anda adalah $\mathcal{H}_{a}: \mu = 7$, maka anda harus mengetikkan ```two.sided``` pada ```alternative```. Hasil dari pengujian t-test akan kita simpan dalam suatu variabel yang kita beri nama ```tresult```. 
+```{r}
+set.seed(5)
+xs1 <- rnorm(50, mean=7,sd = 0.2)
+tresult <- t.test(xs1, mu = 7, alternative="two.sided")
+```
+
+Anda dapat mengeluarkan hasil dari t-test menggunakan sintaks sebagai berikut (sederhananya, anda tinggal mengetikkan ```tresult``` di console R anda)
+```{r}
+tresult
+```
+Perhatikan angka-angka penting seperti p-value dan juga t. Anda terutama perlu melihat angka p-value dan anda bandingkan dengan **significance level** yang anda pasang. Misal, jika anda memasang **significance level** 5 persen, maka anda akan gagal menolak hipotesis nol jika p-value yang didapat berharga lebih kecil dari 0.05. Sebaliknya, anda akan menolak hipotesis nol jika p-value berharga lebih besar dari 0.05. Dalam kasus di atas, anda akan mendapatkan p-value yang lebih besar dari 0.05 dimana ini berarti bahwa anda gagal menolak hipotesis bahwa $\mu=7$. Dengan kata lain, data yang ada merupakan bukti kiat yang menunjukkan bahwa $\mu=7$.
+
+Jika anda ingin memanggil angka p-value dan t di console anda (misalkan untuk perhitungan lebih lanjut), anda dapat mengetikkan ```tresult$p.value``` dan ```tresult$statistic``` seperti contoh di bawah.
+```{r}
+tresult$statistic
+tresult$p.value
+```
+Sekarang mari kita coba dengan dua pasangan hipotesis nol dan alternatif nol yang lain. Untuk pasangan $\mathcal{H}_{0}: \mu \leq 6.8$, $\mathcal{H}_{a}: \mu > 6.8$, maka anda harus memasukkan ```alternative="greater"``` 
+```{r}
+tresult_greater <- t.test(xs1,mu=6.8,alternative = "greater")
+tresult_greater
+```
+Anda akan mendapatkan p-value yang sangat kecil. Dengan significance level 5%, ini berarti bahwa anda menolak null hipotesis bahwa $\mathcal{H}_{0}: \mu \leq 6.8$ dan menerima hipotesis alternatif $\mathcal{H}_{a}: \mu > 6.8$. Sekarang anda bisa lakukan hal yang sama untuk $\mathcal{H}_{0}: \mu \geq 7.2$, $\mathcal{H}_{a}: \mu < 7.2$ . Silahkan anda mencoba dengan menggunakan ```alternative="less"``` pada R anda.
+
+```{r}
+tresult_less <- t.test(xs1,mu=7.2,alternative = "less")
+tresult_less
+```
+
+### Masalah dua sampel
+Kita kembali lagi ke pertanyaan dua sampel yang ingin kita jawab di atas. Sekarang kita gunakan `t.test()` dua sampel dengan sintaks sebagai berikut: `t.test(x,y)` dimana `x` dan `y` adalah dua sampel yang ingin kita uji. Plot di bawah menunjukkan histogram yang sudah dinormalisasi menjadi **density** agar perbedaan antara kedua data dapat terlihat. 
+
+```{r fig_boxplots, echo=FALSE, fig.height=4, fig.width=4, fig.align="center", fig.show="hold", out.width="50%",fig.cap="Boxplot dua data yang akan kita bandingkan (lingkaran biru menunjukkan angka mean)"}
+set.seed(5)
+x1 = rnorm(100, mean = 0, sd = 1) # Data pertama
+x2 = rnorm(100, mean = 1.2, sd = 2.5) # Data kedua
+dens1 <- density(x1)
+xd1 <- dens1$x
+yd1 <- dens1$y
+plot(xd1,yd1,col="blue",xlim=c(-7,7),type = "l",xlab="Data",ylab="Density") # 
+lines(density(x2),col="red") 
+
+```
+
+Dalam hal ini, kita ingin menguji perbedaan antara dua mean dengan hipotesis nol sebagai berikut
+
+$$\mathcal{H}_{0}: \mu_{1} = \mu_{2} $$
+
+Dimana hipotesis nol ini berarti bahwa kita ingin melihat apakah mean dari grup 1 sama dengan grup 2$\mu_{1}$ dan $\mu_{2}$ adalah 
+
+```{r}
+set.seed(5)
+x1 = rnorm(100, mean = 0, sd = 1) # Data pertama
+x2 = rnorm(100, mean = 1.2, sd = 2.5) # Data kedua
+
+t2result <- t.test(x1,x2,conf.level=0.95)
+```
+Angka yang paling penting dari hasil t-test di atas adalah p-value sebagai informasi bagi kita untuk mengambil keputusan. Batas yang paling umum adalah dengan significance level $\alpha =0.05$, yaitu menolak hipotesis nol ketika $p<0.05$. 
+
+Mari kita mulai dengan data yang lebih nyata. Konteks dari permasalahan ini adalah perbandingan dua katalis untuk melihat bagaimana mereka mempengaruhi hasil dari suatu proses kimia. Katalis 1 (kita beri nama ```cat_1```) adalah katalis yang saat ini sering digunakan. Di lain pihak, katalis 2 (kita beri nama ```cat_2```) lebih murah digunakan dan disarankan untuk digunakan jika ternyata performanya sama dengan katalis 1. Eksperimen dilakukan sebanyak delapan kali untuk menguji apakah katalis 2 sebenarnya sama dengan katalis 1. Data yang ingin kita analisis ditunjukkan pada tabel di bawah (```num``` adalah nomor observasi).
+```{r, echo=FALSE}
+num <- c(1:8)
+cat_1 <- c(91.50, 94.18, 92.18, 95.39, 91.79, 89.07, 94.72, 89.21)
+cat_2 <- c(89.19, 90.95, 90.46, 93.21, 97.19, 97.04, 91.07, 92.75)
+cataldata <- data.frame(num,cat_1,cat_2)
+knitr::kable(cataldata)
+```
+
+Kita dapat menuliskan hasil dari observasi kedua katalis menggunakan fungsi ```c``` untuk menyimpan data dalam bentuk vektor. Fungsi yang sama, yaitu ```t.test()```, akan digunakan dengan sedikit perbedaan karena kita membuat asumsi bahwa hasil dari katalis 1 dan katalis 2 memiliki varians yang sama tapi tidak kita ketahui. Cara yang akan kita lakukan adalah dengan menambahkan argumen ```var.equal=TRUE``` ke fungsi ```t.test()```. Sekali lagi, ```mu=0``` dalam konteks uji dua sampel adalah perbedaan antara dua mean. 
+```{r}
+cat_1 <- c(91.50, 94.18, 92.18, 95.39, 91.79, 89.07, 94.72, 89.21) # Katalis 1
+cat_2 <- c(89.19, 90.95, 90.46, 93.21, 97.19, 97.04, 91.07, 92.75) # katalis 2
+
+t2resultc <- t.test(cat_1,cat_2,mu=0,var.equal=TRUE)
+```
+
+Mari kita cetak hasil uji hipotesis dengan mengetikkan ulang ```t2resultc``` pada console.
+```{r}
+t2resultc
+```
+
+
+Kita dapat melihat dengan jelas bahwa p-value yang didapat lebih besar dari 0.05 sehingga kita gagal menolak hipotesis nol. Ingat lagi hipotesis nol kita adalah $\mu_{1}=\mu_{2}$, atau dengan kata lain $\mu_{1}-\mu_{2}=0$. Oleh karena itu, dapat dikatakan bahwa katalis 1 dan katalis 2 memiliki performa yang sama. Katalis 2 pun dapat digunakan sebagai alternatif yang lebih murah dibandingkan dengan katalis 1 karena hasil uji hipotesis menunjukkan perbedaan yang tidak signifikan secara statistik.
+
